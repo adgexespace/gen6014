@@ -106,7 +106,7 @@
   <div class="card">
     <p class="section-label">Contract details</p>
     <div class="field-row">
-      <div class="field"><label for="jmc-contract">JMC Contract <span class="req">*</span></label><input type="text" id="jmc-contract" placeholder="Contract reference"></div>
+      <div class="field"><label for="jmc-contact">JMC Contact <span class="req">*</span></label><input type="text" id="jmc-contract" placeholder="Contract reference"></div>
       <div class="field"><label for="jmc-quote">JMC Quote Reference <span class="req">*</span></label><input type="text" id="jmc-quote" placeholder="Quote reference"></div>
     </div>
     <div class="field-row">
@@ -171,10 +171,11 @@
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 const DOC_TYPES = [
-  { key:'liability',    label:'Public liability insurance certificate', hint:'PDF or image — valid policy required',  accept:'.pdf,.jpg,.jpeg,.png' },
-  { key:'agreement',   label:'Signed supplier agreement',              hint:'PDF — fully signed copy required',      accept:'.pdf' },
-  { key:'registration',label:'Company registration certificate',       hint:'PDF or image — Companies House cert.',  accept:'.pdf,.jpg,.jpeg,.png' },
-  { key:'bacs',        label:'BACS / bank details form',               hint:'PDF — completed and signed',           accept:'.pdf' },
+  { key:'Human Factors',    label:'Human Factors', hint:'PDF or image — valid policy required',  accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'Fuel Tank Safety',   label:'Fuel Tank Safety 1&2',              hint:'PDF — fully signed copy required',      accept:'.pdf' },
+  { key:'EWIS',label:'EWIS',       hint:'EWIS',  accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'CV',        label:'',               hint:'PDF — completed and signed',           accept:'.pdf' },
+   {key:'Competency Assessment',        label:'Competency Assessment',               hint:'PDF — completed and signed',           accept:'.pdf' },
 ];
 
 let contractors = [];
@@ -280,7 +281,7 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 
 /* ── PDF generation ── */
 async function handleSubmit() {
-  const jmcContract  = document.getElementById('jmc-contract').value.trim();
+  const jmcContact  = document.getElementById('jmc-contact').value.trim();
   const description  = document.getElementById('description').value.trim();
   const startDate    = document.getElementById('start-date').value;
   const endDate      = document.getElementById('end-date').value;
