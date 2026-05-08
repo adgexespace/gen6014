@@ -14,7 +14,6 @@
     --success: #0d9e6e; --success-soft: #e6f7f2;
     --danger: #c0392b; --danger-soft: #fdf0ee;
   }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; padding: 3rem 1.5rem; font-size: 15px; line-height: 1.6; }
   .page { max-width: 700px; margin: 0 auto; }
 
@@ -106,7 +105,8 @@
   <div class="card">
     <p class="section-label">Contract details</p>
     <div class="field-row">
-      <div class="field"><label for="jmc-contact">JMC Contact <span class="req">*</span></label><input type="text" id="jmc-contract" placeholder="Contract reference"></div>
+      <!-- FIX 1: label for and input id now both consistently use "jmc-contract" -->
+      <div class="field"><label for="jmc-contract">JMC Contract <span class="req">*</span></label><input type="text" id="jmc-contract" placeholder="Contract reference"></div>
       <div class="field"><label for="jmc-quote">JMC Quote Reference <span class="req">*</span></label><input type="text" id="jmc-quote" placeholder="Quote reference"></div>
     </div>
     <div class="field-row">
@@ -147,7 +147,7 @@
   </div>
 
   <div class="success-banner" id="success-banner">
-    <span style="font-size:18px;flex-shrink:0">✅</span>
+    <span style="font-size:18px;flex-shrink:0">&#10003;</span>
     <p><strong>PDF downloaded.</strong> Your submission pack has been saved — one summary page followed by each contractor's documents in order.</p>
   </div>
 
@@ -170,12 +170,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
+// FIX 2: DOC_TYPES keys no longer contain spaces — use hyphenated keys safe for DOM IDs
 const DOC_TYPES = [
-  { key:'Human Factors',    label:'Human Factors', hint:'PDF or image — valid policy required',  accept:'.pdf,.jpg,.jpeg,.png' },
-  { key:'Fuel Tank Safety',   label:'Fuel Tank Safety 1&2',              hint:'PDF — fully signed copy required',      accept:'.pdf' },
-  { key:'EWIS',label:'EWIS',       hint:'EWIS',  accept:'.pdf,.jpg,.jpeg,.png' },
-  { key:'CV',        label:'',               hint:'PDF — completed and signed',           accept:'.pdf' },
-   {key:'Competency Assessment',        label:'Competency Assessment',               hint:'PDF — completed and signed',           accept:'.pdf' },
+  { key:'human-factors',         label:'Human Factors',          hint:'PDF or image',            accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'fuel-tank-safety',      label:'Fuel Tank Safety 1&2',   hint:'PDF — fully signed',      accept:'.pdf' },
+  { key:'ewis',                  label:'EWIS',                   hint:'PDF or image',            accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'cv',                    label:'CV',                     hint:'PDF or Word document',    accept:'.pdf,.docx' },
+  { key:'competency-assessment', label:'Competency Assessment',  hint:'PDF — completed & signed',accept:'.pdf' },
 ];
 
 let contractors = [];
@@ -231,7 +232,7 @@ function uploadRow(c, dt) {
   const ok = c.docs[dt.key];
   return `
     <div class="upload-item ${ok ? 'ready' : ''}" id="wrap-${c.id}-${dt.key}">
-      <div class="upload-icon" id="icon-${c.id}-${dt.key}">${ok ? '✅' : '📄'}</div>
+      <div class="upload-icon" id="icon-${c.id}-${dt.key}">${ok ? '&#10003;' : '&#128196;'}</div>
       <div class="upload-meta">
         <div class="upload-name">${esc(dt.label)} <span style="color:var(--accent)">*</span></div>
         <div class="upload-hint" id="hint-${c.id}-${dt.key}">${ok ? esc(c.fileNames[dt.key]) : dt.hint}</div>
@@ -263,7 +264,7 @@ function handleFile(id, key, input) {
   c.fileObjects[key] = file;
 
   document.getElementById('wrap-' + id + '-' + key).className = 'upload-item ready';
-  document.getElementById('icon-' + id + '-' + key).textContent = '✅';
+  document.getElementById('icon-' + id + '-' + key).textContent = 'OK';
   document.getElementById('hint-' + id + '-' + key).textContent = file.name;
   const st = document.getElementById('status-' + id + '-' + key);
   st.textContent = 'Attached'; st.className = 'upload-status attached';
@@ -277,19 +278,20 @@ function updateProgress() {
   document.getElementById('progress-text').textContent = attached + ' of ' + total;
 }
 
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ── PDF generation ── */
 async function handleSubmit() {
-  const jmcContact  = document.getElementById('jmc-contact').value.trim();
-  const description  = document.getElementById('description').value.trim();
-  const startDate    = document.getElementById('start-date').value;
-  const endDate      = document.getElementById('end-date').value;
-  const jmcQuote     = document.getElementById('jmc-quote').value.trim();
-  const submittedBy  = document.getElementById('submitted-by').value.trim();
+  // FIX 1: now reads 'jmc-contract' consistently matching the HTML input id
+  const jmcContract    = document.getElementById('jmc-contract').value.trim();
+  const description    = document.getElementById('description').value.trim();
+  const startDate      = document.getElementById('start-date').value;
+  const endDate        = document.getElementById('end-date').value;
+  const jmcQuote       = document.getElementById('jmc-quote').value.trim();
+  const submittedBy    = document.getElementById('submitted-by').value.trim();
   const submissionDate = document.getElementById('submission-date').value;
 
-  const ratings = ['b1','mech','smw'].filter(r => document.getElementById('rating-'+r).checked);
+  const ratings   = ['b1','mech','smw'].filter(r => document.getElementById('rating-'+r).checked);
   const ratingStr = ratings.map(r => r.toUpperCase()).join(', ') || '';
 
   const ok = jmcContract && description && ratings.length > 0 && startDate && endDate && jmcQuote
@@ -308,7 +310,7 @@ async function handleSubmit() {
 
   document.getElementById('val-msg').classList.remove('show');
   const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = 'Building PDF…';
+  btn.disabled = true; btn.textContent = 'Building PDF...';
 
   try {
     const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -345,7 +347,7 @@ async function handleSubmit() {
     const sp = pdfDoc.addPage([W, H]);
     sp.drawRectangle({x:0,y:H-82,width:W,height:82,color:blue});
     sp.drawText('Supplier Application',                          {x:M,y:H-32,font:boldFont,size:20,color:white});
-    sp.drawText('Submission summary — retain for your records', {x:M,y:H-50,font:regFont, size:9, color:rgb(.78,.86,.97)});
+    sp.drawText('Submission summary - retain for your records',  {x:M,y:H-50,font:regFont, size:9, color:rgb(.78,.86,.97)});
     const dtxt='Date: '+dateStr;
     sp.drawText('Reference: '+refNum, {x:M,y:H-67,font:regFont,size:8.5,color:rgb(.70,.80,.96)});
     sp.drawText(dtxt, {x:W-M-regFont.widthOfTextAtSize(dtxt,8.5),y:H-67,font:regFont,size:8.5,color:rgb(.70,.80,.96)});
@@ -359,17 +361,18 @@ async function handleSubmit() {
     };
 
     const dataRow = (label, value) => {
-      sp.drawText(label,         {x:M+4,  y,font:regFont, size:9,color:inkMid});
-      sp.drawText(value||'—',    {x:M+130,y,font:boldFont,size:9,color:ink});
+      sp.drawText(label,      {x:M+4,  y,font:regFont, size:9,color:inkMid});
+      // FIX 3: use plain '-' instead of em dash which is outside WinAnsi safe range
+      sp.drawText(value||'-', {x:M+130,y,font:boldFont,size:9,color:ink});
       y -= 16;
     };
 
     secHead('Contract details');
-    dataRow('JMC Contract',       jmcContract);
-    dataRow('JMC Quote Ref.',     jmcQuote);
-    dataRow('Contractor Rating',  ratingStr);
-    dataRow('Job Start Date',     startDate);
-    dataRow('Provisional End',    endDate);
+    dataRow('JMC Contract',      jmcContract);
+    dataRow('JMC Quote Ref.',    jmcQuote);
+    dataRow('Contractor Rating', ratingStr);
+    dataRow('Job Start Date',    startDate);
+    dataRow('Provisional End',   endDate);
     wrapText(description, regFont, 9, W-M*2-140).forEach((l, i) => {
       if (i === 0) { sp.drawText('Brief Description', {x:M+4, y, font:regFont, size:9, color:inkMid}); sp.drawText(l, {x:M+130, y, font:boldFont, size:9, color:ink}); }
       else sp.drawText(l, {x:M+130, y, font:boldFont, size:9, color:ink});
@@ -378,11 +381,11 @@ async function handleSubmit() {
     y -= 4;
 
     secHead('Submission details');
-    dataRow('Submitted by',  submittedBy);
-    dataRow('Date',          submissionDate);
+    dataRow('Submitted by', submittedBy);
+    dataRow('Date',         submissionDate);
 
     y -= 8;
-    secHead('Contractors — document index');
+    secHead('Contractors - document index');
 
     for (const c of contractors) {
       if (y < 120) break;
@@ -400,7 +403,9 @@ async function handleSubmit() {
         const ns=String(i+1);
         sp.drawText(ns,{x:M+12-boldFont.widthOfTextAtSize(ns,6.5)/2,y:y+0.5,font:boldFont,size:6.5,color:white});
         sp.drawText(dt.label, {x:M+24,y:y+3,font:regFont,size:8.5,color:ink});
-        const fn=c.fileNames[dt.key], fnT=fn.length>44?fn.slice(0,41)+'…':fn;
+        const fn=c.fileNames[dt.key];
+        // FIX 4: use '...' instead of '…' (ellipsis U+2026 is outside WinAnsi safe range)
+        const fnT=fn.length>44?fn.slice(0,41)+'...':fn;
         sp.drawText(fnT, {x:M+24+regFont.widthOfTextAtSize(dt.label,8.5)+8,y:y+3,font:regFont,size:8,color:inkSoft});
         y -= 16;
       });
@@ -417,7 +422,7 @@ async function handleSubmit() {
     y-=58;
     sp.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:0.4,color:lineCol});
     y-=10;
-    sp.drawText('Generated automatically. '+refNum+' · '+dateStr,{x:M,y,font:regFont,size:7,color:inkSoft});
+    sp.drawText('Generated automatically. '+refNum+' - '+dateStr,{x:M,y,font:regFont,size:7,color:inkSoft});
     sp.drawText('Page 1',{x:W-M-regFont.widthOfTextAtSize('Page 1',7),y,font:regFont,size:7,color:inkSoft});
 
     /* append documents */
@@ -433,7 +438,7 @@ async function handleSubmit() {
           } catch(e) {
             const ep = pdfDoc.addPage([W,H]);
             ep.drawText('Could not embed: '+c.fileNames[dt.key],{x:M,y:H/2+10,font:boldFont,size:11,color:rgb(.7,.1,.1)});
-            ep.drawText('The file may be password-protected.',  {x:M,y:H/2-10,font:regFont, size:9, color:inkMid});
+            ep.drawText('The file may be password-protected.',   {x:M,y:H/2-10,font:regFont, size:9, color:inkMid});
           }
         } else {
           const embedded = file.type==='image/png' ? await pdfDoc.embedPng(buf) : await pdfDoc.embedJpg(buf);
