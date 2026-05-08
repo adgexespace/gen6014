@@ -4,8 +4,95 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Supplier Document Submission</title>
-<link href="styles.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a2e; --ink-mid: #4a4a6a; --ink-soft: #8888a8;
+    --line: #e2e2ee; --surface: #f7f7fc; --white: #ffffff;
+    --accent: #2d5be3; --accent-soft: #eef2fd;
+    --success: #0d9e6e; --success-soft: #e6f7f2;
+    --danger: #c0392b; --danger-soft: #fdf0ee;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; padding: 3rem 1.5rem; font-size: 15px; line-height: 1.6; }
+  .page { max-width: 700px; margin: 0 auto; }
 
+  .header { margin-bottom: 2.5rem; }
+  .header-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 4px 10px; border-radius: 4px; margin-bottom: 1rem; }
+  .header-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  h1 { font-size: 26px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--ink-mid); font-size: 15px; font-weight: 300; }
+
+  .card { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 1.75rem; margin-bottom: 1.25rem; }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 13px; font-weight: 500; }
+  label .req { color: var(--accent); margin-left: 2px; }
+  input[type="text"], input[type="email"], input[type="tel"], input[type="date"], textarea {
+    font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink);
+    background: var(--white); border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 12px; transition: border-color 0.15s; outline: none; width: 100%;
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,91,227,0.08); }
+  .checkbox-group { display: flex; gap: 1rem; flex-wrap: wrap; padding: 4px 0; }
+  .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; cursor: pointer; }
+
+  .contractor-block { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 1rem; overflow: hidden; }
+  .contractor-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .contractor-num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: white; font-size: 12px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .contractor-name-input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: var(--ink); border: none; background: transparent; outline: none; }
+  .contractor-name-input::placeholder { color: var(--ink-soft); font-weight: 400; }
+  .remove-btn { font-size: 12px; color: var(--danger); background: var(--danger-soft); border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+  .remove-btn:hover { background: #f5c0ba; }
+  .contractor-docs { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+  .upload-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; transition: border-color 0.15s, background 0.15s; }
+  .upload-item.ready { background: var(--success-soft); border-color: #a0d9c4; }
+  .upload-item.missing { background: var(--danger-soft); border-color: #f0b8b3; }
+  .upload-icon { width: 30px; height: 30px; border-radius: 6px; background: var(--white); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+  .upload-item.ready .upload-icon { background: var(--success-soft); border-color: #a0d9c4; }
+  .upload-meta { flex: 1; min-width: 0; }
+  .upload-name { font-size: 12.5px; font-weight: 500; color: var(--ink); }
+  .upload-hint { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .upload-item.ready .upload-hint { color: var(--success); }
+  .upload-status { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
+  .upload-status.pending  { background: var(--line); color: var(--ink-soft); }
+  .upload-status.attached { background: var(--success-soft); color: var(--success); }
+  .upload-trigger { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .upload-trigger:hover { background: #dce8ff; }
+  input[type="file"] { display: none; }
+
+  .add-contractor-btn { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: var(--accent); background: var(--accent-soft); border: 1.5px dashed #b3c8f7; border-radius: 8px; padding: 11px; cursor: pointer; transition: background 0.15s; }
+  .add-contractor-btn:hover { background: #dce8ff; }
+
+  .progress-wrap { margin-top: 1.5rem; }
+  .progress-bar-track { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+  .progress-label { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+  .progress-label span { font-weight: 500; color: var(--ink); }
+
+  .submit-btn { font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; color: white; background: var(--accent); border: none; border-radius: 8px; padding: 12px 28px; cursor: pointer; width: 100%; transition: background 0.15s, opacity 0.15s; }
+  .submit-btn:hover:not(:disabled) { background: #1e46c4; }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .val-msg { display: none; font-size: 12px; color: var(--danger); margin-top: 8px; text-align: center; }
+  .val-msg.show { display: block; }
+
+  .success-banner { display: none; align-items: flex-start; gap: 12px; background: var(--success-soft); border: 1px solid #a0d9c4; border-radius: 8px; padding: 14px 16px; margin-bottom: 1.25rem; }
+  .success-banner.show { display: flex; }
+  .success-banner p { font-size: 13px; color: #0a6b4a; line-height: 1.6; }
+  .success-banner strong { font-weight: 500; }
+
+  .empty-state { text-align: center; padding: 1.5rem; color: var(--ink-soft); font-size: 13px; border: 1.5px dashed var(--line); border-radius: 8px; margin-bottom: 1rem; }
+  .footer-note { text-align: center; font-size: 12px; color: var(--ink-soft); margin-top: 1.5rem; }
+
+  @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } body { padding: 1.5rem 1rem; } }
+</style>
 </head>
 <body>
 <div class="page">
@@ -17,17 +104,35 @@
   </header>
 
   <div class="card">
-    <p class="section-label">Company details</p>
+    <p class="section-label">Contract details</p>
     <div class="field-row">
-      <div class="field"><label for="company">Company name <span class="req">*</span></label><input type="text" id="company" placeholder="Acme Ltd"></div>
-      <div class="field"><label for="reg">Company registration no. <span class="req">*</span></label><input type="text" id="reg" placeholder="12345678"></div>
+      <div class="field"><label for="jmc-contract">JMC Contract <span class="req">*</span></label><input type="text" id="jmc-contract" placeholder="Contract reference"></div>
+      <div class="field"><label for="jmc-quote">JMC Quote Reference <span class="req">*</span></label><input type="text" id="jmc-quote" placeholder="Quote reference"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label for="contact">Contact name <span class="req">*</span></label><input type="text" id="contact" placeholder="Jane Smith"></div>
-      <div class="field"><label for="phone">Phone number <span class="req">*</span></label><input type="tel" id="phone" placeholder="+44 7700 000000"></div>
+      <div class="field full"><label for="description">Brief Description <span class="req">*</span></label><textarea id="description" placeholder="Provide a brief description of the work"></textarea></div>
     </div>
     <div class="field-row">
-      <div class="field full"><label for="email">Email address <span class="req">*</span></label><input type="email" id="email" placeholder="jane@acme.com"></div>
+      <div class="field full">
+        <label>Contractor Rating <span class="req">*</span></label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="rating-b1"> B1</label>
+          <label><input type="checkbox" id="rating-mech"> Mech</label>
+          <label><input type="checkbox" id="rating-smw"> SMW</label>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="start-date">Job Start Date <span class="req">*</span></label><input type="date" id="start-date"></div>
+      <div class="field"><label for="end-date">Provisional End Date <span class="req">*</span></label><input type="date" id="end-date"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="section-label">Submission details</p>
+    <div class="field-row">
+      <div class="field"><label for="submitted-by">Form Submitted by <span class="req">*</span></label><input type="text" id="submitted-by" placeholder="Full name"></div>
+      <div class="field"><label for="submission-date">Date <span class="req">*</span></label><input type="date" id="submission-date"></div>
     </div>
   </div>
 
@@ -50,6 +155,17 @@
   <p class="val-msg" id="val-msg">Please complete all fields, add at least one contractor with a name, and attach all documents.</p>
 
   <p class="footer-note">All submissions are handled securely. Documents are used for supplier onboarding only.</p>
+
+  <div class="card" style="margin-top:1.25rem;">
+    <p class="section-label">Notes</p>
+    <p style="font-size:13px;color:var(--ink-mid);line-height:1.7;">
+      The completed form will download automatically on submission. Please email it to:
+    </p>
+    <ul style="margin-top:0.75rem;padding-left:1.25rem;display:flex;flex-direction:column;gap:4px;">
+      <li style="font-size:13px;color:var(--ink);"><a href="mailto:aiden.graham@exeteraerospace.com" style="color:var(--accent);text-decoration:none;">aiden.graham@exeteraerospace.com</a></li>
+      <li style="font-size:13px;color:var(--ink);"><a href="mailto:siobhan.duffy@exeteraerospace.com" style="color:var(--accent);text-decoration:none;">siobhan.duffy@exeteraerospace.com</a></li>
+    </ul>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -164,13 +280,19 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 
 /* ── PDF generation ── */
 async function handleSubmit() {
-  const company = document.getElementById('company').value.trim();
-  const reg     = document.getElementById('reg').value.trim();
-  const contact = document.getElementById('contact').value.trim();
-  const phone   = document.getElementById('phone').value.trim();
-  const email   = document.getElementById('email').value.trim();
+  const jmcContract  = document.getElementById('jmc-contract').value.trim();
+  const description  = document.getElementById('description').value.trim();
+  const startDate    = document.getElementById('start-date').value;
+  const endDate      = document.getElementById('end-date').value;
+  const jmcQuote     = document.getElementById('jmc-quote').value.trim();
+  const submittedBy  = document.getElementById('submitted-by').value.trim();
+  const submissionDate = document.getElementById('submission-date').value;
 
-  const ok = company && reg && contact && phone && email
+  const ratings = ['b1','mech','smw'].filter(r => document.getElementById('rating-'+r).checked);
+  const ratingStr = ratings.map(r => r.toUpperCase()).join(', ') || '';
+
+  const ok = jmcContract && description && ratings.length > 0 && startDate && endDate && jmcQuote
+    && submittedBy && submissionDate
     && contractors.length > 0
     && contractors.every(c => c.name.trim())
     && contractors.every(c => Object.values(c.docs).every(Boolean));
@@ -241,12 +363,22 @@ async function handleSubmit() {
       y -= 16;
     };
 
-    secHead('Company details');
-    dataRow('Company name',     company);
-    dataRow('Registration no.', reg);
-    dataRow('Contact name',     contact);
-    dataRow('Phone',            phone);
-    dataRow('Email',            email);
+    secHead('Contract details');
+    dataRow('JMC Contract',       jmcContract);
+    dataRow('JMC Quote Ref.',     jmcQuote);
+    dataRow('Contractor Rating',  ratingStr);
+    dataRow('Job Start Date',     startDate);
+    dataRow('Provisional End',    endDate);
+    wrapText(description, regFont, 9, W-M*2-140).forEach((l, i) => {
+      if (i === 0) { sp.drawText('Brief Description', {x:M+4, y, font:regFont, size:9, color:inkMid}); sp.drawText(l, {x:M+130, y, font:boldFont, size:9, color:ink}); }
+      else sp.drawText(l, {x:M+130, y, font:boldFont, size:9, color:ink});
+      y -= 14;
+    });
+    y -= 4;
+
+    secHead('Submission details');
+    dataRow('Submitted by',  submittedBy);
+    dataRow('Date',          submissionDate);
 
     y -= 8;
     secHead('Contractors — document index');
@@ -254,7 +386,7 @@ async function handleSubmit() {
     for (const c of contractors) {
       if (y < 120) break;
       sp.drawRectangle({x:M,y:y-4,width:W-M*2,height:18,color:amberSoft});
-      const indLabel = c.induction ? '   ✓ Induction required' : '';
+      const indLabel = c.induction ? '   [Induction required]' : '';
       sp.drawText((c.name.trim()||'(unnamed)') + indLabel, {x:M+8,y:y+6,font:boldFont,size:9.5,color:amber});
       const pgl='From page '+pgStart[c.id];
       sp.drawText(pgl, {x:W-M-regFont.widthOfTextAtSize(pgl,8.5),y:y+6,font:regFont,size:8.5,color:amber});
@@ -278,7 +410,7 @@ async function handleSubmit() {
     y -= 4;
     sp.drawRectangle({x:M,y:y-4,width:W-M*2,height:46,color:blueSoft,borderColor:blue,borderWidth:0.4});
     sp.drawText('Declaration',{x:M+10,y:y+26,font:boldFont,size:9,color:blue});
-    const decl='By submitting this form, '+company+' confirms all information is accurate and all listed documents are genuine and current. Submission date: '+dateStr+'.';
+    const decl='Submitted by '+submittedBy+' on behalf of JMC Contract '+jmcContract+'. All information provided is accurate and all listed documents are genuine and current. Submission date: '+submissionDate+'.';
     wrapText(decl,regFont,8,W-M*2-20).forEach((l,i)=>sp.drawText(l,{x:M+10,y:y+14-i*11,font:regFont,size:8,color:ink}));
 
     y-=58;
@@ -315,7 +447,7 @@ async function handleSubmit() {
 
     const bytes = await pdfDoc.save();
     const url   = URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-    Object.assign(document.createElement('a'),{href:url,download:'supplier-submission_'+company.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.pdf'}).click();
+    Object.assign(document.createElement('a'),{href:url,download:'supplier-submission_'+jmcContract.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.pdf'}).click();
     setTimeout(()=>URL.revokeObjectURL(url),8000);
 
     document.getElementById('success-banner').classList.add('show');
