@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supplier Document Submission</title>
+<link href="style" rel="stylesheet">
+
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div class="header-badge">Supplier Portal</div>
+    <h1>Company submission form</h1>
+    <p class="subtitle">Complete all fields, add each contractor, and attach the required documents before submitting.</p>
+  </header>
+
+  <div class="card">
+    <p class="section-label">Company details</p>
+    <div class="field-row">
+      <div class="field"><label for="company">Company name <span class="req">*</span></label><input type="text" id="company" placeholder="Acme Ltd"></div>
+      <div class="field"><label for="reg">Company registration no. <span class="req">*</span></label><input type="text" id="reg" placeholder="12345678"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="contact">Contact name <span class="req">*</span></label><input type="text" id="contact" placeholder="Jane Smith"></div>
+      <div class="field"><label for="phone">Phone number <span class="req">*</span></label><input type="tel" id="phone" placeholder="+44 7700 000000"></div>
+    </div>
+    <div class="field-row">
+      <div class="field full"><label for="email">Email address <span class="req">*</span></label><input type="email" id="email" placeholder="jane@acme.com"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="section-label">Contractors &amp; required documents</p>
+    <div id="contractor-list"></div>
+    <button class="add-contractor-btn" onclick="addContractor()">+ Add contractor</button>
+    <div class="progress-wrap">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <p class="progress-label"><span id="progress-text">0 of 0</span> documents attached</p>
+    </div>
+  </div>
+
+  <div class="success-banner" id="success-banner">
+    <span style="font-size:18px;flex-shrink:0">✅</span>
+    <p><strong>PDF downloaded.</strong> Your submission pack has been saved — one summary page followed by each contractor's documents in order.</p>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" onclick="handleSubmit().catch(console.error)">Generate &amp; download PDF</button>
+  <p class="val-msg" id="val-msg">Please complete all fields, add at least one contractor with a name, and attach all documents.</p>
+
+  <p class="footer-note">All submissions are handled securely. Documents are used for supplier onboarding only.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script>
+const DOC_TYPES = [
+  { key:'liability',    label:'Public liability insurance certificate', hint:'PDF or image — valid policy required',  accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'agreement',   label:'Signed supplier agreement',              hint:'PDF — fully signed copy required',      accept:'.pdf' },
+  { key:'registration',label:'Company registration certificate',       hint:'PDF or image — Companies House cert.',  accept:'.pdf,.jpg,.jpeg,.png' },
+  { key:'bacs',        label:'BACS / bank details form',               hint:'PDF — completed and signed',           accept:'.pdf' },
+];
+
+let contractors = [];
+let nextId = 1;
+
+function addContractor() {
+  const id = nextId++;
+  contractors.push({
+    id,
+    name: '',
+    induction: false,
+    docs:        Object.fromEntries(DOC_TYPES.map(d => [d.key, false])),
+    fileNames:   Object.fromEntries(DOC_TYPES.map(d => [d.key, ''])),
+    fileObjects: Object.fromEntries(DOC_TYPES.map(d => [d.key, null])),
+  });
+  renderContractors();
+  const inp = document.getElementById('cname-' + id);
+  if (inp) inp.focus();
+}
+
+function removeContractor(id) {
+  contractors = contractors.filter(c => c.id !== id);
+  renderContractors();
+  updateProgress();
+}
+
+function renderContractors() {
+  const list = document.getElementById('contractor-list');
+  if (contractors.length === 0) {
+    list.innerHTML = '<div class="empty-state">No contractors added yet — click the button below to add one.</div>';
+    return;
+  }
+  list.innerHTML = contractors.map((c, idx) => `
+    <div class="contractor-block" id="cblock-${c.id}">
+      <div class="contractor-header">
+        <div class="contractor-num">${idx + 1}</div>
+        <input class="contractor-name-input" id="cname-${c.id}" type="text"
+          placeholder="Contractor name" value="${esc(c.name)}"
+          oninput="setName(${c.id}, this.value)">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-mid);white-space:nowrap;cursor:pointer;">
+          <input type="checkbox" ${c.induction ? 'checked' : ''} onchange="setInduction(${c.id}, this.checked)">
+          Induction required
+        </label>
+        <button class="remove-btn" onclick="removeContractor(${c.id})">Remove</button>
+      </div>
+      <div class="contractor-docs">
+        ${DOC_TYPES.map(dt => uploadRow(c, dt)).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function uploadRow(c, dt) {
+  const ok = c.docs[dt.key];
+  return `
+    <div class="upload-item ${ok ? 'ready' : ''}" id="wrap-${c.id}-${dt.key}">
+      <div class="upload-icon" id="icon-${c.id}-${dt.key}">${ok ? '✅' : '📄'}</div>
+      <div class="upload-meta">
+        <div class="upload-name">${esc(dt.label)} <span style="color:var(--accent)">*</span></div>
+        <div class="upload-hint" id="hint-${c.id}-${dt.key}">${ok ? esc(c.fileNames[dt.key]) : dt.hint}</div>
+      </div>
+      <span class="upload-status ${ok ? 'attached' : 'pending'}" id="status-${c.id}-${dt.key}">${ok ? 'Attached' : 'Required'}</span>
+      <button class="upload-trigger" onclick="document.getElementById('file-${c.id}-${dt.key}').click()">Attach</button>
+      <input type="file" id="file-${c.id}-${dt.key}" accept="${dt.accept}"
+        onchange="handleFile(${c.id},'${dt.key}',this)">
+    </div>`;
+}
+
+function setName(id, val) {
+  const c = contractors.find(c => c.id === id);
+  if (c) c.name = val;
+}
+
+function setInduction(id, checked) {
+  const c = contractors.find(c => c.id === id);
+  if (c) c.induction = checked;
+}
+
+function handleFile(id, key, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const c = contractors.find(c => c.id === id);
+  if (!c) return;
+  c.docs[key] = true;
+  c.fileNames[key] = file.name;
+  c.fileObjects[key] = file;
+
+  document.getElementById('wrap-' + id + '-' + key).className = 'upload-item ready';
+  document.getElementById('icon-' + id + '-' + key).textContent = '✅';
+  document.getElementById('hint-' + id + '-' + key).textContent = file.name;
+  const st = document.getElementById('status-' + id + '-' + key);
+  st.textContent = 'Attached'; st.className = 'upload-status attached';
+  updateProgress();
+}
+
+function updateProgress() {
+  const total    = contractors.length * DOC_TYPES.length;
+  const attached = contractors.reduce((s, c) => s + Object.values(c.docs).filter(Boolean).length, 0);
+  document.getElementById('progress-fill').style.width = (total > 0 ? attached/total*100 : 0) + '%';
+  document.getElementById('progress-text').textContent = attached + ' of ' + total;
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── PDF generation ── */
+async function handleSubmit() {
+  const company = document.getElementById('company').value.trim();
+  const reg     = document.getElementById('reg').value.trim();
+  const contact = document.getElementById('contact').value.trim();
+  const phone   = document.getElementById('phone').value.trim();
+  const email   = document.getElementById('email').value.trim();
+
+  const ok = company && reg && contact && phone && email
+    && contractors.length > 0
+    && contractors.every(c => c.name.trim())
+    && contractors.every(c => Object.values(c.docs).every(Boolean));
+
+  if (!ok) {
+    contractors.forEach(c => DOC_TYPES.forEach(dt => {
+      if (!c.docs[dt.key]) document.getElementById('wrap-'+c.id+'-'+dt.key).classList.add('missing');
+    }));
+    document.getElementById('val-msg').classList.add('show');
+    return;
+  }
+
+  document.getElementById('val-msg').classList.remove('show');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Building PDF…';
+
+  try {
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+    const pdfDoc   = await PDFDocument.create();
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const regFont  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const W=595, H=842, M=45;
+    const blue=rgb(.176,.357,.890), blueSoft=rgb(.933,.949,.992);
+    const ink=rgb(.102,.102,.180), inkMid=rgb(.29,.29,.416), inkSoft=rgb(.533,.533,.659);
+    const lineCol=rgb(.886,.886,.933);
+    const success=rgb(.051,.620,.431);
+    const white=rgb(1,1,1);
+    const amber=rgb(.729,.459,.067), amberSoft=rgb(.98,.933,.855);
+
+    const refNum  = 'REF-' + Date.now().toString(36).toUpperCase();
+    const dateStr = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+
+    /* pre-scan page numbers */
+    let pg = 2;
+    const pgStart = {};
+    for (const c of contractors) {
+      pgStart[c.id] = pg;
+      for (const dt of DOC_TYPES) {
+        const f = c.fileObjects[dt.key];
+        if (f.type === 'application/pdf') {
+          try { const s = await PDFDocument.load(await f.arrayBuffer(),{ignoreEncryption:true}); pg += s.getPageCount(); }
+          catch(e) { pg += 1; }
+        } else { pg += 1; }
+      }
+    }
+
+    /* summary page */
+    const sp = pdfDoc.addPage([W, H]);
+    sp.drawRectangle({x:0,y:H-82,width:W,height:82,color:blue});
+    sp.drawText('Supplier Application',                          {x:M,y:H-32,font:boldFont,size:20,color:white});
+    sp.drawText('Submission summary — retain for your records', {x:M,y:H-50,font:regFont, size:9, color:rgb(.78,.86,.97)});
+    const dtxt='Date: '+dateStr;
+    sp.drawText('Reference: '+refNum, {x:M,y:H-67,font:regFont,size:8.5,color:rgb(.70,.80,.96)});
+    sp.drawText(dtxt, {x:W-M-regFont.widthOfTextAtSize(dtxt,8.5),y:H-67,font:regFont,size:8.5,color:rgb(.70,.80,.96)});
+
+    let y = H-108;
+
+    const secHead = label => {
+      sp.drawRectangle({x:M,y:y-5,width:W-M*2,height:18,color:blueSoft});
+      sp.drawText(label.toUpperCase(),{x:M+6,y:y+5,font:boldFont,size:7.5,color:blue});
+      y -= 23;
+    };
+
+    const dataRow = (label, value) => {
+      sp.drawText(label,         {x:M+4,  y,font:regFont, size:9,color:inkMid});
+      sp.drawText(value||'—',    {x:M+130,y,font:boldFont,size:9,color:ink});
+      y -= 16;
+    };
+
+    secHead('Company details');
+    dataRow('Company name',     company);
+    dataRow('Registration no.', reg);
+    dataRow('Contact name',     contact);
+    dataRow('Phone',            phone);
+    dataRow('Email',            email);
+
+    y -= 8;
+    secHead('Contractors — document index');
+
+    for (const c of contractors) {
+      if (y < 120) break;
+      sp.drawRectangle({x:M,y:y-4,width:W-M*2,height:18,color:amberSoft});
+      const indLabel = c.induction ? '   ✓ Induction required' : '';
+      sp.drawText((c.name.trim()||'(unnamed)') + indLabel, {x:M+8,y:y+6,font:boldFont,size:9.5,color:amber});
+      const pgl='From page '+pgStart[c.id];
+      sp.drawText(pgl, {x:W-M-regFont.widthOfTextAtSize(pgl,8.5),y:y+6,font:regFont,size:8.5,color:amber});
+      y -= 20;
+
+      DOC_TYPES.forEach((dt,i) => {
+        if (y < 60) return;
+        sp.drawRectangle({x:M,y:y-5,width:W-M*2,height:16,color:i%2===0?rgb(.98,.98,.992):white});
+        sp.drawCircle({x:M+12,y:y+3,size:6,color:success});
+        const ns=String(i+1);
+        sp.drawText(ns,{x:M+12-boldFont.widthOfTextAtSize(ns,6.5)/2,y:y+0.5,font:boldFont,size:6.5,color:white});
+        sp.drawText(dt.label, {x:M+24,y:y+3,font:regFont,size:8.5,color:ink});
+        const fn=c.fileNames[dt.key], fnT=fn.length>44?fn.slice(0,41)+'…':fn;
+        sp.drawText(fnT, {x:M+24+regFont.widthOfTextAtSize(dt.label,8.5)+8,y:y+3,font:regFont,size:8,color:inkSoft});
+        y -= 16;
+      });
+      y -= 6;
+    }
+
+    /* declaration */
+    y -= 4;
+    sp.drawRectangle({x:M,y:y-4,width:W-M*2,height:46,color:blueSoft,borderColor:blue,borderWidth:0.4});
+    sp.drawText('Declaration',{x:M+10,y:y+26,font:boldFont,size:9,color:blue});
+    const decl='By submitting this form, '+company+' confirms all information is accurate and all listed documents are genuine and current. Submission date: '+dateStr+'.';
+    wrapText(decl,regFont,8,W-M*2-20).forEach((l,i)=>sp.drawText(l,{x:M+10,y:y+14-i*11,font:regFont,size:8,color:ink}));
+
+    y-=58;
+    sp.drawLine({start:{x:M,y},end:{x:W-M,y},thickness:0.4,color:lineCol});
+    y-=10;
+    sp.drawText('Generated automatically. '+refNum+' · '+dateStr,{x:M,y,font:regFont,size:7,color:inkSoft});
+    sp.drawText('Page 1',{x:W-M-regFont.widthOfTextAtSize('Page 1',7),y,font:regFont,size:7,color:inkSoft});
+
+    /* append documents */
+    for (const c of contractors) {
+      for (const dt of DOC_TYPES) {
+        const file = c.fileObjects[dt.key];
+        const buf  = await file.arrayBuffer();
+        if (file.type === 'application/pdf') {
+          try {
+            const src = await PDFDocument.load(buf,{ignoreEncryption:true});
+            const cps = await pdfDoc.copyPages(src, src.getPageIndices());
+            cps.forEach(p => pdfDoc.addPage(p));
+          } catch(e) {
+            const ep = pdfDoc.addPage([W,H]);
+            ep.drawText('Could not embed: '+c.fileNames[dt.key],{x:M,y:H/2+10,font:boldFont,size:11,color:rgb(.7,.1,.1)});
+            ep.drawText('The file may be password-protected.',  {x:M,y:H/2-10,font:regFont, size:9, color:inkMid});
+          }
+        } else {
+          const embedded = file.type==='image/png' ? await pdfDoc.embedPng(buf) : await pdfDoc.embedJpg(buf);
+          const {width:iW,height:iH} = embedded;
+          const scale = Math.min((W-M*2)/iW,(H-M*2)/iH,1);
+          const dW=iW*scale, dH=iH*scale;
+          const ip = pdfDoc.addPage([W,H]);
+          ip.drawImage(embedded,{x:(W-dW)/2,y:(H-dH)/2,width:dW,height:dH});
+        }
+      }
+    }
+
+    const bytes = await pdfDoc.save();
+    const url   = URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    Object.assign(document.createElement('a'),{href:url,download:'supplier-submission_'+company.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.pdf'}).click();
+    setTimeout(()=>URL.revokeObjectURL(url),8000);
+
+    document.getElementById('success-banner').classList.add('show');
+    btn.disabled=false; btn.textContent='Download again';
+
+  } catch(err) {
+    console.error(err);
+    btn.disabled=false; btn.textContent='Generate & download PDF';
+    const m=document.getElementById('val-msg');
+    m.textContent='Error: '+err.message; m.classList.add('show');
+  }
+}
+
+function wrapText(text, font, size, maxW) {
+  const lines=[], words=text.split(' '); let line='';
+  for (const w of words) {
+    const t=line?line+' '+w:w;
+    if (font.widthOfTextAtSize(t,size)>maxW){lines.push(line);line=w;}else line=t;
+  }
+  if(line)lines.push(line); return lines;
+}
+
+addContractor();
+</script>
+</body>
+</html>
